@@ -24,7 +24,3 @@ class TeamMember(Base):
     # Relationships
     team = relationship("MaintenanceTeam", backref="members")
     user = relationship("User", backref="team_memberships")
-
-    __table_args__ = (
-        UniqueConstraint("team_id", "user_id", name="uq_team_user"),
-    )

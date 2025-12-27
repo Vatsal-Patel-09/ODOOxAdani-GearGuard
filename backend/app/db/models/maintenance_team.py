@@ -34,5 +34,3 @@ class MaintenanceTeam(Base):
     
     # Relationships
     team_lead = relationship("User", foreign_keys=[team_lead_id], backref="led_teams")
-
-    created_at = Column(TIMESTAMP, server_default=func.now())
