@@ -3,10 +3,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user, require_role
 from app.schemas.equipment import EquipmentCreate, EquipmentUpdate, EquipmentOut
 from app.schemas.maintenance_request import MaintenanceRequestOut
 from app.services import equipment as equipment_service
+from app.db.models.user import User
 
 router = APIRouter(prefix="/equipment", tags=["Equipment"])
 
@@ -19,6 +20,7 @@ def list_equipment(
     category: Optional[str] = None,
     is_scrapped: Optional[bool] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """List all equipment with optional filters."""
     return equipment_service.get_equipments(
@@ -35,8 +37,9 @@ def list_equipment(
 def create_equipment(
     equipment_in: EquipmentCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),  # Manager/Admin only
 ):
-    """Create a new equipment."""
+    """Create a new equipment. Requires manager or admin role."""
     # Check if serial number already exists
     existing = equipment_service.get_equipment_by_serial(db, equipment_in.serial_number)
     if existing:
@@ -51,6 +54,7 @@ def create_equipment(
 def get_equipment(
     equipment_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """Get equipment by ID."""
     equipment = equipment_service.get_equipment(db, equipment_id)
@@ -67,8 +71,9 @@ def update_equipment(
     equipment_id: UUID,
     equipment_in: EquipmentUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "manager")),  # Manager/Admin only
 ):
-    """Update equipment."""
+    """Update equipment. Requires manager or admin role."""
     equipment = equipment_service.update_equipment(db, equipment_id, equipment_in)
     if not equipment:
         raise HTTPException(
@@ -82,8 +87,9 @@ def update_equipment(
 def delete_equipment(
     equipment_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only (scrap)
 ):
-    """Delete equipment."""
+    """Delete/scrap equipment. Requires admin role."""
     deleted = equipment_service.delete_equipment(db, equipment_id)
     if not deleted:
         raise HTTPException(
@@ -97,6 +103,7 @@ def delete_equipment(
 def get_equipment_requests(
     equipment_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """Get all maintenance requests for a specific equipment (smart button)."""
     equipment = equipment_service.get_equipment(db, equipment_id)
@@ -112,6 +119,7 @@ def get_equipment_requests(
 def get_equipment_request_count(
     equipment_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """Get count of open maintenance requests for equipment (smart button badge)."""
     equipment = equipment_service.get_equipment(db, equipment_id)

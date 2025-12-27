@@ -91,3 +91,21 @@ def remove_team_member(db: Session, team_id: UUID, user_id: UUID) -> bool:
     db.delete(db_member)
     db.commit()
     return True
+
+
+def get_user_team_ids(db: Session, user_id: UUID) -> List[UUID]:
+    """
+    Get all team IDs that a user belongs to.
+    Used for team-scoped access control.
+    """
+    memberships = db.query(TeamMember).filter(TeamMember.user_id == user_id).all()
+    return [m.team_id for m in memberships]
+
+
+def is_user_in_team(db: Session, user_id: UUID, team_id: UUID) -> bool:
+    """Check if a user is a member of a specific team."""
+    return (
+        db.query(TeamMember)
+        .filter(TeamMember.team_id == team_id, TeamMember.user_id == user_id)
+        .first()
+    ) is not None

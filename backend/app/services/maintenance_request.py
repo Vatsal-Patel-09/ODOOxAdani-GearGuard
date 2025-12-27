@@ -20,7 +20,16 @@ def get_requests(
     request_type: Optional[str] = None,
     team_id: Optional[UUID] = None,
     assigned_to: Optional[UUID] = None,
+    team_ids: Optional[List[UUID]] = None,  # For team-scoped access
+    created_by: Optional[str] = None,  # For user-scoped access
 ) -> List[MaintenanceRequest]:
+    """
+    Get maintenance requests with optional filters.
+    
+    Args:
+        team_ids: If provided, only return requests from these teams (team-scoped access)
+        created_by: If provided, only return requests created by this user
+    """
     query = db.query(MaintenanceRequest)
     
     if status:
@@ -32,6 +41,14 @@ def get_requests(
     if assigned_to:
         query = query.filter(MaintenanceRequest.assigned_to == assigned_to)
     
+    # Team-scoped access: filter by user's teams
+    if team_ids is not None:
+        query = query.filter(MaintenanceRequest.maintenance_team_id.in_(team_ids))
+    
+    # User-scoped access: filter by creator
+    if created_by:
+        query = query.filter(MaintenanceRequest.created_by == created_by)
+    
     return query.order_by(MaintenanceRequest.created_at.desc()).offset(skip).limit(limit).all()
 
 
@@ -39,7 +56,7 @@ def get_request(db: Session, request_id: UUID) -> Optional[MaintenanceRequest]:
     return db.query(MaintenanceRequest).filter(MaintenanceRequest.id == request_id).first()
 
 
-def create_request(db: Session, request_in: MaintenanceRequestCreate) -> MaintenanceRequest:
+def create_request(db: Session, request_in: MaintenanceRequestCreate, created_by: Optional[str] = None) -> MaintenanceRequest:
     # Auto-fill maintenance_team_id from equipment if not provided
     team_id = request_in.maintenance_team_id
     if request_in.equipment_id and not team_id:
@@ -54,7 +71,7 @@ def create_request(db: Session, request_in: MaintenanceRequestCreate) -> Mainten
         status="new",
         equipment_id=request_in.equipment_id,
         maintenance_team_id=team_id,
-        created_by=request_in.created_by,
+        created_by=created_by or request_in.created_by,
         scheduled_date=request_in.scheduled_date,
     )
     db.add(db_request)
@@ -120,8 +137,9 @@ def get_calendar_requests(
     db: Session,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    team_ids: Optional[List[UUID]] = None,  # For team-scoped access
 ) -> List[MaintenanceRequest]:
-    """Get preventive maintenance requests for calendar view."""
+    """Get preventive maintenance requests for calendar view with optional team scope."""
     query = db.query(MaintenanceRequest).filter(
         MaintenanceRequest.request_type == "preventive",
         MaintenanceRequest.scheduled_date.isnot(None),
@@ -131,5 +149,9 @@ def get_calendar_requests(
         query = query.filter(MaintenanceRequest.scheduled_date >= start_date)
     if end_date:
         query = query.filter(MaintenanceRequest.scheduled_date <= end_date)
+    
+    # Team-scoped access
+    if team_ids is not None:
+        query = query.filter(MaintenanceRequest.maintenance_team_id.in_(team_ids))
     
     return query.order_by(MaintenanceRequest.scheduled_date).all()
