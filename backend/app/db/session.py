@@ -1,23 +1,42 @@
-import os
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+"""Database session configuration."""
 
-# Load environment variables from .env file
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set. Please check your .env file.")
+# Convert postgres:// to postgresql+asyncpg://
+if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
+else:
+    raise ValueError("DATABASE_URL environment variable is required")
 
-engine = create_engine(
+engine = create_async_engine(
     DATABASE_URL,
+    echo=True,  # Set to False in production
     pool_pre_ping=True,
+    connect_args=connect_args,
 )
 
-SessionLocal = sessionmaker(
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
     autocommit=False,
     autoflush=False,
-    bind=engine
 )
+
+
+async def get_db():
+    """Dependency for getting database session."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
