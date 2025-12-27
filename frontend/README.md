@@ -267,7 +267,7 @@ JWT_SECRET_KEY=your-secret-key-here
 
 ## 📄 License
 
-Built for ODOO x Adani Hackathon 2025 - 26
+Built for ODOO x Adani Hackathon 2026
 
 ---
 
