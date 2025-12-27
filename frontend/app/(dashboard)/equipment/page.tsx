@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Wrench, Trash2, Edit, Search } from "lucide-react"
+import Link from "next/link"
+import { Plus, Wrench, Trash2, Edit, Search, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -250,10 +251,10 @@ export default function EquipmentPage() {
                             filteredEquipment.map((item) => (
                                 <TableRow key={item.id}>
                                     <TableCell className="font-medium">
-                                        <div className="flex items-center gap-2">
+                                        <Link href={`/equipment/${item.id}`} className="flex items-center gap-2 hover:text-primary">
                                             <Wrench className="h-4 w-4 text-muted-foreground" />
                                             {item.name}
-                                        </div>
+                                        </Link>
                                     </TableCell>
                                     <TableCell>{item.serial_number}</TableCell>
                                     <TableCell>{item.category}</TableCell>
@@ -267,6 +268,11 @@ export default function EquipmentPage() {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" asChild>
+                                            <Link href={`/equipment/${item.id}`}>
+                                                <Eye className="h-4 w-4" />
+                                            </Link>
+                                        </Button>
                                         <Button variant="ghost" size="icon">
                                             <Edit className="h-4 w-4" />
                                         </Button>
