@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/components/AuthProvider";
+import { AuthProvider } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GearGuard - Maintenance Tracker",
-  description: "The Ultimate Maintenance Management System",
+  title: "GearGuard - Maintenance Management System",
+  description: "The Ultimate Maintenance Tracker for Equipment and Work Centers",
 };
 
 export default function RootLayout({
@@ -32,6 +33,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <AuthProvider>
             {children}
+            <Toaster position="top-right" richColors />
           </AuthProvider>
         </ThemeProvider>
       </body>

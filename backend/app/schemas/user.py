@@ -1,30 +1,57 @@
+"""User Pydantic schemas."""
+
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+
+from .base import BaseSchema, TimestampMixin, PaginatedResponse
 
 
 class UserBase(BaseModel):
-    name: str
+    """Base user schema with common fields."""
+    name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
-    role: str  # user | technician | manager | admin
+    phone: Optional[str] = Field(None, max_length=50)
+    department: Optional[str] = Field(None, max_length=100)
+    job_title: Optional[str] = Field(None, max_length=255)
+    role: str = Field(default="user", pattern="^(user|technician|manager|admin)$")
+    is_technician: bool = False
     avatar_url: Optional[str] = None
 
 
 class UserCreate(UserBase):
+    """Schema for creating a user."""
     pass
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
+    """Schema for updating a user."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
     email: Optional[EmailStr] = None
-    role: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=50)
+    department: Optional[str] = Field(None, max_length=100)
+    job_title: Optional[str] = Field(None, max_length=255)
+    role: Optional[str] = Field(None, pattern="^(user|technician|manager|admin)$")
+    is_technician: Optional[bool] = None
+    is_active: Optional[bool] = None
     avatar_url: Optional[str] = None
 
 
-class UserOut(UserBase):
+class UserResponse(UserBase, TimestampMixin, BaseSchema):
+    """Schema for user response."""
     id: UUID
-    created_at: datetime
+    is_active: bool = True
 
-    class Config:
-        from_attributes = True
+
+class UserBrief(BaseSchema):
+    """Brief user info for embedding in other responses."""
+    id: UUID
+    name: str
+    email: str
+    avatar_url: Optional[str] = None
+    is_technician: bool = False
+
+
+class UserList(PaginatedResponse):
+    """Paginated list of users."""
+    items: List[UserResponse]

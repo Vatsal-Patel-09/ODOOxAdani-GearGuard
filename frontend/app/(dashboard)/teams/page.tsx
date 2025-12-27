@@ -30,7 +30,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getTeams, createTeam, deleteTeam, getTeamMembers, addTeamMember, removeTeamMember, getUsers, MaintenanceTeam, TeamMember, User } from "@/lib/api"
+import { teamsApi, usersApi, MaintenanceTeam, TeamMember, User } from "@/lib/api"
 
 export default function TeamsPage() {
     const [teams, setTeams] = useState<MaintenanceTeam[]>([])
@@ -46,8 +46,8 @@ export default function TeamsPage() {
     const fetchData = async () => {
         try {
             const [teamsData, usersData] = await Promise.all([
-                getTeams(),
-                getUsers(),
+                teamsApi.list(),
+                usersApi.list(),
             ])
             setTeams(teamsData)
             setUsers(usersData)
@@ -55,7 +55,7 @@ export default function TeamsPage() {
             // Fetch members for each team
             const membersMap: Record<string, TeamMember[]> = {}
             for (const team of teamsData) {
-                const members = await getTeamMembers(team.id)
+                const members = await teamsApi.getMembers(team.id)
                 membersMap[team.id] = members
             }
             setTeamMembers(membersMap)
@@ -73,7 +73,7 @@ export default function TeamsPage() {
     const handleCreateTeam = async (e: React.FormEvent) => {
         e.preventDefault()
         try {
-            await createTeam({
+            await teamsApi.create({
                 name: formData.name,
                 description: formData.description || undefined,
             })
@@ -88,7 +88,7 @@ export default function TeamsPage() {
     const handleDeleteTeam = async (id: string) => {
         if (confirm("Are you sure you want to delete this team?")) {
             try {
-                await deleteTeam(id)
+                await teamsApi.delete(id)
                 fetchData()
             } catch (error) {
                 console.error("Failed to delete team:", error)
@@ -99,7 +99,7 @@ export default function TeamsPage() {
     const handleAddMember = async () => {
         if (!selectedTeam || !selectedUser) return
         try {
-            await addTeamMember(selectedTeam, selectedUser)
+            await teamsApi.addMember(selectedTeam, selectedUser)
             setIsAddMemberOpen(false)
             setSelectedUser("")
             fetchData()
@@ -110,7 +110,7 @@ export default function TeamsPage() {
 
     const handleRemoveMember = async (teamId: string, userId: string) => {
         try {
-            await removeTeamMember(teamId, userId)
+            await teamsApi.removeMember(teamId, userId)
             fetchData()
         } catch (error) {
             console.error("Failed to remove member:", error)
