@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/components/AuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,8 +18,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GearGuard - Maintenance Management System",
   description: "The Ultimate Maintenance Tracker for Equipment and Work Centers",
-  title: "GearGuard - Maintenance Tracker",
-  description: "The Ultimate Maintenance Management System",
 };
 
 export default function RootLayout({

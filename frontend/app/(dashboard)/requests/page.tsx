@@ -31,7 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getRequests, createRequest, updateRequestStatus, updateRequest, getEquipments, getUsers, MaintenanceRequest, Equipment, User } from "@/lib/api"
+import { requestsApi, equipmentApi, usersApi, MaintenanceRequest, Equipment, User } from "@/lib/api"
 
 const STATUS_COLUMNS = [
     { id: "new", label: "New", color: "bg-blue-500" },
@@ -61,9 +61,9 @@ export default function RequestsPage() {
     const fetchData = async () => {
         try {
             const [requestsData, equipmentData, usersData] = await Promise.all([
-                getRequests(),
-                getEquipments(),
-                getUsers(),
+                requestsApi.list(),
+                equipmentApi.list(),
+                usersApi.list(),
             ])
             setRequests(requestsData)
             setEquipment(equipmentData)
@@ -82,7 +82,7 @@ export default function RequestsPage() {
     const handleCreateRequest = async (e: React.FormEvent) => {
         e.preventDefault()
         try {
-            await createRequest({
+            await requestsApi.create({
                 subject: formData.subject,
                 description: formData.description || undefined,
                 request_type: formData.request_type,
@@ -119,7 +119,7 @@ export default function RequestsPage() {
         }
 
         try {
-            await updateRequestStatus(draggedRequest, status)
+            await requestsApi.updateStatus(draggedRequest, status)
             fetchData()
         } catch (error) {
             console.error("Failed to update status:", error)
@@ -130,7 +130,7 @@ export default function RequestsPage() {
     const handleStartWork = async (requestId: string) => {
         try {
             // Set started_at and move to in_progress
-            await updateRequest(requestId, {
+            await requestsApi.update(requestId, {
                 status: "in_progress",
                 started_at: new Date().toISOString(),
             })
@@ -144,7 +144,7 @@ export default function RequestsPage() {
         if (!completingRequest) return
 
         try {
-            await updateRequest(completingRequest.id, {
+            await requestsApi.update(completingRequest.id, {
                 status: "repaired",
                 completed_at: new Date().toISOString(),
                 duration_hours: durationHours ? parseFloat(durationHours) : undefined,
@@ -160,7 +160,7 @@ export default function RequestsPage() {
 
     const handleAssignTechnician = async (requestId: string, userId: string) => {
         try {
-            await updateRequest(requestId, { assigned_to: userId })
+            await requestsApi.update(requestId, { assigned_to: userId })
             fetchData()
         } catch (error) {
             console.error("Failed to assign technician:", error)
