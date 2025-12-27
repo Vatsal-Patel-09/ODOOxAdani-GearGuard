@@ -10,7 +10,7 @@ export default function DashboardLayout({
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-                <header className="flex h-14 items-center gap-4 border-b px-6">
+                <header className="flex items-center border-b px-4 py-3">
                     <SidebarTrigger />
                 </header>
                 <main className="flex-1 p-6">
