@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
-import { PanelLeftIcon } from "lucide-react"
+import { PanelLeftIcon, Settings, Shield } from "lucide-react" // Add Shield icon import
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -157,11 +157,13 @@ function Sidebar({
   collapsible = "offcanvas",
   className,
   children,
+  footer,
   ...props
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
+  footer?: React.ReactNode
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
@@ -175,7 +177,24 @@ function Sidebar({
         )}
         {...props}
       >
-        {children}
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-4 py-6">
+            <Shield className="h-6 w-6 text-sidebar-accent-foreground" /> {/* Symbol added */}
+            <span className="text-2xl font-bold tracking-tight text-sidebar-accent-foreground">GearGuard</span>
+          </div>
+        </SidebarHeader>
+        <SidebarSeparator />
+        <SidebarContent className="flex-1 flex flex-col gap-2 overflow-auto">
+          {children}
+        </SidebarContent>
+        <SidebarSeparator />
+        <SidebarFooter>
+          {footer ? footer : (
+            <div className="px-4 py-4 text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} GearGuard
+            </div>
+          )}
+        </SidebarFooter>
       </div>
     )
   }
@@ -187,7 +206,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -195,11 +214,24 @@ function Sidebar({
           }
           side={side}
         >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <SidebarHeader>
+            <div className="flex items-center gap-2 px-4 py-6">
+              <Shield className="h-6 w-6 text-sidebar-accent-foreground" /> {/* Symbol added */}
+              <span className="text-2xl font-bold tracking-tight text-sidebar-accent-foreground">GearGuard</span>
+            </div>
+          </SidebarHeader>
+          <SidebarSeparator />
+          <SidebarContent className="flex-1 flex flex-col gap-2 overflow-auto">
+            {children}
+          </SidebarContent>
+          <SidebarSeparator />
+          <SidebarFooter>
+            {footer ? footer : (
+              <div className="px-4 py-4 text-xs text-muted-foreground">
+                &copy; {new Date().getFullYear()} GearGuard
+              </div>
+            )}
+          </SidebarFooter>
         </SheetContent>
       </Sheet>
     )
@@ -214,7 +246,6 @@ function Sidebar({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* This is what handles the sidebar gap on desktop */}
       <div
         data-slot="sidebar-gap"
         className={cn(
@@ -233,7 +264,6 @@ function Sidebar({
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-          // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
@@ -246,7 +276,24 @@ function Sidebar({
           data-slot="sidebar-inner"
           className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm"
         >
-          {children}
+          <SidebarHeader>
+            <div className="flex items-center gap-2 px-4 py-6">
+              <Settings className="h-6 w-6 text-sidebar-accent-foreground" /> {/* Symbol added */}
+              <span className="text-2xl font-bold tracking-tight text-sidebar-accent-foreground">GearGuard</span>
+            </div>
+          </SidebarHeader>
+          <SidebarSeparator />
+          <SidebarContent className="flex-1 flex flex-col gap-2 overflow-auto">
+            {children}
+          </SidebarContent>
+          <SidebarSeparator />
+          <SidebarFooter>
+            {footer ? footer : (
+              <div className="px-4 py-4 text-xs text-muted-foreground">
+                &copy; {new Date().getFullYear()} GearGuard
+              </div>
+            )}
+          </SidebarFooter>
         </div>
       </div>
     </div>

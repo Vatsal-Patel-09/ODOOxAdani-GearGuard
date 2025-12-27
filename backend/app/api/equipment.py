@@ -2,14 +2,39 @@ from uuid import UUID
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import date
 
 from app.api.deps import get_db, get_current_user, require_role
-from app.schemas.equipment import EquipmentCreate, EquipmentUpdate, EquipmentOut
 from app.schemas.maintenance_request import MaintenanceRequestOut
+from app.schemas.equipment import EquipmentOut
 from app.services import equipment as equipment_service
 from app.db.models.user import User
+from app.db.models.equipment import Equipment
+from app.db.models.maintenance_request import MaintenanceRequest
 
 router = APIRouter(prefix="/equipment", tags=["Equipment"])
+
+
+class EquipmentCreate(BaseModel):
+    name: str
+    serial_number: str
+    category: str
+    department: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = "operational"
+    purchase_date: Optional[date] = None
+    warranty_expiry: Optional[date] = None
+
+
+class EquipmentUpdate(BaseModel):
+    name: Optional[str] = None
+    serial_number: Optional[str] = None
+    category: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = None
+    is_scrapped: Optional[bool] = None
 
 
 @router.get("", response_model=List[EquipmentOut])

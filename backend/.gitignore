@@ -1,8 +1,65 @@
-venv/
-__pycache__/
-*.pyc
+# Ignore all .env and secret config files
 .env
-.DS_Store
-*.egg-info/
+.env.*
+*.env
+*.env.*
+
+# Ignore SQLite and other database files
+*.db
+*.sqlite3
+
+# Ignore Python cache and compiled files
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test output and coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Ignore log files
+*.log
+
+# Ignore Alembic cache and migration pyc
+alembic/versions/*.pyc
+alembic/versions/__pycache__/
+alembic/__pycache__/
+alembic/history.db
+alembic/versions/*.orig
+
+# Ignore IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Ignore build/dist
 dist/
 build/
+*.egg-info/
+.eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+develop-eggs/
+var/
+
+# Ignore files that may contain secrets or hashes
+**/secrets.*
+**/secret.*
+**/hash_*.*
+**/password_*.*
+**/config.*
+**/settings.*

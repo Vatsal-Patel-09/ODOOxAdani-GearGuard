@@ -4,172 +4,286 @@ Run with: python -m app.seed
 """
 import os
 import sys
-
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from datetime import date, timedelta
-from passlib.context import CryptContext
 from dotenv import load_dotenv
+
+# Add the backend directory to the path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 
-from app.db.session import SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.base import Base
 from app.db.models.user import User
-from app.db.models.equipment import Equipment
 from app.db.models.maintenance_team import MaintenanceTeam
 from app.db.models.team_member import TeamMember
+from app.db.models.equipment import Equipment
 from app.db.models.maintenance_request import MaintenanceRequest
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgresql+asyncpg://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    elif DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
-def seed_data():
+engine = create_engine(DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(bind=engine)
+
+def seed_database():
     db = SessionLocal()
     
     try:
-        print("🌱 Seeding database...")
+        # Check if data already exists
+        existing_users = db.query(User).count()
+        if existing_users > 0:
+            print("Database already has data. Skipping seed.")
+            return
+        
+        print("Seeding database...")
         
         # Create Users
-        print("  Creating users...")
-        users_data = [
-            {"name": "John Smith", "email": "john@gearguard.com", "role": "admin"},
-            {"name": "Sarah Johnson", "email": "sarah@gearguard.com", "role": "manager"},
-            {"name": "Mike Wilson", "email": "mike@gearguard.com", "role": "technician"},
-            {"name": "Emily Brown", "email": "emily@gearguard.com", "role": "technician"},
-            {"name": "David Lee", "email": "david@gearguard.com", "role": "technician"},
-            {"name": "Lisa Chen", "email": "lisa@gearguard.com", "role": "user"},
+        users = [
+            User(name="Admin User", email="admin@gearguard.com", role="admin"),
+            User(name="John Smith", email="john.smith@gearguard.com", role="technician"),
+            User(name="Jane Doe", email="jane.doe@gearguard.com", role="technician"),
+            User(name="Mike Johnson", email="mike.johnson@gearguard.com", role="manager"),
+            User(name="Sarah Williams", email="sarah.williams@gearguard.com", role="user"),
+            User(name="Tom Brown", email="tom.brown@gearguard.com", role="technician"),
         ]
+        db.add_all(users)
+        db.commit()
+        print(f"Created {len(users)} users")
         
-        users = []
-        for data in users_data:
-            existing = db.query(User).filter(User.email == data["email"]).first()
-            if existing:
-                users.append(existing)
-            else:
-                user = User(
-                    name=data["name"],
-                    email=data["email"],
-                    password_hash=pwd_context.hash("password123"),
-                    role=data["role"],
-                )
-                db.add(user)
-                db.flush()
-                users.append(user)
+        # Refresh to get IDs
+        for user in users:
+            db.refresh(user)
         
-        # Create Teams
-        print("  Creating teams...")
-        teams_data = [
-            {"name": "Mechanics", "description": "Handles mechanical equipment repairs"},
-            {"name": "Electricians", "description": "Electrical systems maintenance"},
-            {"name": "IT Support", "description": "Computer and network maintenance"},
+        # Create Maintenance Teams
+        teams = [
+            MaintenanceTeam(name="Electrical Team", description="Handles all electrical equipment maintenance"),
+            MaintenanceTeam(name="Mechanical Team", description="Handles mechanical equipment and machinery"),
+            MaintenanceTeam(name="HVAC Team", description="Heating, ventilation, and air conditioning maintenance"),
+            MaintenanceTeam(name="General Maintenance", description="General facility maintenance tasks"),
         ]
+        db.add_all(teams)
+        db.commit()
+        print(f"Created {len(teams)} teams")
         
-        teams = []
-        for data in teams_data:
-            existing = db.query(MaintenanceTeam).filter(MaintenanceTeam.name == data["name"]).first()
-            if existing:
-                teams.append(existing)
-            else:
-                team = MaintenanceTeam(**data)
-                db.add(team)
-                db.flush()
-                teams.append(team)
+        # Refresh to get IDs
+        for team in teams:
+            db.refresh(team)
         
         # Add team members
-        print("  Adding team members...")
-        # Mike and Emily -> Mechanics
-        # David -> Electricians
-        # Emily -> IT Support
-        team_assignments = [
-            (teams[0].id, users[2].id),  # Mike -> Mechanics
-            (teams[0].id, users[3].id),  # Emily -> Mechanics
-            (teams[1].id, users[4].id),  # David -> Electricians
-            (teams[2].id, users[3].id),  # Emily -> IT Support
+        team_members = [
+            TeamMember(team_id=teams[0].id, user_id=users[1].id),  # John -> Electrical
+            TeamMember(team_id=teams[0].id, user_id=users[2].id),  # Jane -> Electrical
+            TeamMember(team_id=teams[1].id, user_id=users[5].id),  # Tom -> Mechanical
+            TeamMember(team_id=teams[2].id, user_id=users[1].id),  # John -> HVAC
+            TeamMember(team_id=teams[3].id, user_id=users[2].id),  # Jane -> General
+            TeamMember(team_id=teams[3].id, user_id=users[5].id),  # Tom -> General
         ]
-        
-        for team_id, user_id in team_assignments:
-            existing = db.query(TeamMember).filter(
-                TeamMember.team_id == team_id,
-                TeamMember.user_id == user_id
-            ).first()
-            if not existing:
-                db.add(TeamMember(team_id=team_id, user_id=user_id))
+        db.add_all(team_members)
+        db.commit()
+        print(f"Created {len(team_members)} team memberships")
         
         # Create Equipment
-        print("  Creating equipment...")
-        equipment_data = [
-            {"name": "CNC Machine A1", "serial_number": "CNC-001", "category": "Machine", "department": "Production", "location": "Building A", "maintenance_team_id": teams[0].id, "assigned_employee_id": users[5].id},
-            {"name": "CNC Machine A2", "serial_number": "CNC-002", "category": "Machine", "department": "Production", "location": "Building A", "maintenance_team_id": teams[0].id},
-            {"name": "Forklift #3", "serial_number": "FL-003", "category": "Vehicle", "department": "Warehouse", "location": "Dock B", "maintenance_team_id": teams[0].id},
-            {"name": "Delivery Van", "serial_number": "VAN-001", "category": "Vehicle", "department": "Logistics", "location": "Parking Lot", "maintenance_team_id": teams[0].id},
-            {"name": "MacBook Pro - John", "serial_number": "MAC-001", "category": "Computer", "department": "IT", "location": "Office 101", "maintenance_team_id": teams[2].id, "assigned_employee_id": users[0].id},
-            {"name": "Dell Workstation", "serial_number": "DELL-002", "category": "Computer", "department": "Design", "location": "Office 205", "maintenance_team_id": teams[2].id, "assigned_employee_id": users[5].id},
-            {"name": "Industrial Printer", "serial_number": "PRT-001", "category": "Machine", "department": "Production", "location": "Print Room", "maintenance_team_id": teams[1].id},
-            {"name": "Air Compressor", "serial_number": "AC-001", "category": "Tool", "department": "Maintenance", "location": "Workshop", "maintenance_team_id": teams[0].id},
+        equipment_list = [
+            Equipment(
+                name="Industrial Generator A1",
+                serial_number="GEN-001-2024",
+                category="Power",
+                department="Facilities",
+                location="Building A - Basement",
+                purchase_date=date(2022, 3, 15),
+                warranty_expiry=date(2027, 3, 15),
+                maintenance_team_id=teams[0].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="HVAC Unit Floor 1",
+                serial_number="HVAC-F1-001",
+                category="HVAC",
+                department="Facilities",
+                location="Building A - Floor 1",
+                purchase_date=date(2021, 6, 20),
+                warranty_expiry=date(2026, 6, 20),
+                maintenance_team_id=teams[2].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="CNC Machine M100",
+                serial_number="CNC-M100-2023",
+                category="Manufacturing",
+                department="Production",
+                location="Factory Floor - Section B",
+                purchase_date=date(2023, 1, 10),
+                warranty_expiry=date(2028, 1, 10),
+                maintenance_team_id=teams[1].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="Forklift Unit 3",
+                serial_number="FLT-003-2020",
+                category="Transportation",
+                department="Warehouse",
+                location="Warehouse A",
+                purchase_date=date(2020, 8, 5),
+                warranty_expiry=date(2025, 8, 5),
+                maintenance_team_id=teams[1].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="Elevator System Main",
+                serial_number="ELV-MAIN-2019",
+                category="Transportation",
+                department="Facilities",
+                location="Building A - Central",
+                purchase_date=date(2019, 4, 22),
+                warranty_expiry=date(2024, 4, 22),
+                maintenance_team_id=teams[0].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="Server Rack #5",
+                serial_number="SRV-RACK-005",
+                category="IT",
+                department="IT",
+                location="Server Room",
+                purchase_date=date(2022, 11, 1),
+                warranty_expiry=date(2027, 11, 1),
+                maintenance_team_id=teams[0].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="Air Compressor Unit 2",
+                serial_number="COMP-002-2021",
+                category="Industrial",
+                department="Production",
+                location="Factory Floor - Section A",
+                purchase_date=date(2021, 2, 14),
+                warranty_expiry=date(2026, 2, 14),
+                maintenance_team_id=teams[1].id,
+                is_scrapped=False,
+            ),
+            Equipment(
+                name="Security Camera System",
+                serial_number="CAM-SYS-2023",
+                category="Security",
+                department="Security",
+                location="Building A - All Floors",
+                purchase_date=date(2023, 5, 8),
+                warranty_expiry=date(2028, 5, 8),
+                maintenance_team_id=teams[0].id,
+                is_scrapped=False,
+            ),
         ]
+        db.add_all(equipment_list)
+        db.commit()
+        print(f"Created {len(equipment_list)} equipment items")
         
-        equipment_list = []
-        for data in equipment_data:
-            existing = db.query(Equipment).filter(Equipment.serial_number == data["serial_number"]).first()
-            if existing:
-                equipment_list.append(existing)
-            else:
-                eq = Equipment(
-                    **data,
-                    purchase_date=date.today() - timedelta(days=365),
-                    warranty_expiry=date.today() + timedelta(days=365),
-                )
-                db.add(eq)
-                db.flush()
-                equipment_list.append(eq)
+        # Refresh to get IDs
+        for eq in equipment_list:
+            db.refresh(eq)
         
         # Create Maintenance Requests
-        print("  Creating maintenance requests...")
-        requests_data = [
-            # New requests
-            {"subject": "Leaking Oil", "description": "Oil leaking from hydraulic system", "request_type": "corrective", "status": "new", "equipment_id": equipment_list[0].id, "maintenance_team_id": teams[0].id},
-            {"subject": "Strange Noise", "description": "Grinding noise when running", "request_type": "corrective", "status": "new", "equipment_id": equipment_list[1].id, "maintenance_team_id": teams[0].id},
-            
-            # In Progress
-            {"subject": "Brake Check", "description": "Brakes need inspection", "request_type": "corrective", "status": "in_progress", "equipment_id": equipment_list[2].id, "maintenance_team_id": teams[0].id, "assigned_to": users[2].id},
-            {"subject": "Software Update", "description": "System update required", "request_type": "preventive", "status": "in_progress", "equipment_id": equipment_list[4].id, "maintenance_team_id": teams[2].id, "assigned_to": users[3].id},
-            
-            # Repaired
-            {"subject": "Battery Replacement", "description": "Replace worn battery", "request_type": "corrective", "status": "repaired", "equipment_id": equipment_list[3].id, "maintenance_team_id": teams[0].id, "assigned_to": users[2].id, "duration_hours": 2.5},
-            {"subject": "Monitor Calibration", "description": "Color calibration needed", "request_type": "preventive", "status": "repaired", "equipment_id": equipment_list[5].id, "maintenance_team_id": teams[2].id, "assigned_to": users[3].id, "duration_hours": 1.0},
-            
-            # Preventive scheduled
-            {"subject": "Monthly Inspection", "description": "Regular monthly checkup", "request_type": "preventive", "status": "new", "equipment_id": equipment_list[6].id, "maintenance_team_id": teams[1].id, "scheduled_date": date.today() + timedelta(days=3)},
-            {"subject": "Oil Change", "description": "Scheduled oil change", "request_type": "preventive", "status": "new", "equipment_id": equipment_list[7].id, "maintenance_team_id": teams[0].id, "scheduled_date": date.today() + timedelta(days=7)},
-            
-            # Overdue request
-            {"subject": "Filter Replacement", "description": "Replace air filter", "request_type": "preventive", "status": "new", "equipment_id": equipment_list[7].id, "maintenance_team_id": teams[0].id, "scheduled_date": date.today() - timedelta(days=2)},
+        today = date.today()
+        requests = [
+            MaintenanceRequest(
+                subject="Generator A1 - Annual Inspection",
+                description="Scheduled annual inspection and oil change for Industrial Generator A1",
+                request_type="preventive",
+                status="new",
+                equipment_id=equipment_list[0].id,
+                maintenance_team_id=teams[0].id,
+                scheduled_date=today + timedelta(days=3),
+            ),
+            MaintenanceRequest(
+                subject="HVAC Filter Replacement",
+                description="Replace air filters on HVAC Unit Floor 1",
+                request_type="preventive",
+                status="in_progress",
+                equipment_id=equipment_list[1].id,
+                maintenance_team_id=teams[2].id,
+                assigned_to=users[1].id,
+                scheduled_date=today,
+            ),
+            MaintenanceRequest(
+                subject="CNC Machine Calibration",
+                description="Recalibrate CNC Machine M100 after software update",
+                request_type="corrective",
+                status="new",
+                equipment_id=equipment_list[2].id,
+                maintenance_team_id=teams[1].id,
+                scheduled_date=today + timedelta(days=1),
+            ),
+            MaintenanceRequest(
+                subject="Forklift Battery Replacement",
+                description="Battery not holding charge - needs replacement",
+                request_type="corrective",
+                status="in_progress",
+                equipment_id=equipment_list[3].id,
+                maintenance_team_id=teams[1].id,
+                assigned_to=users[5].id,
+                scheduled_date=today,
+            ),
+            MaintenanceRequest(
+                subject="Elevator Monthly Inspection",
+                description="Routine monthly safety inspection",
+                request_type="preventive",
+                status="repaired",
+                equipment_id=equipment_list[4].id,
+                maintenance_team_id=teams[0].id,
+                assigned_to=users[1].id,
+                scheduled_date=today - timedelta(days=2),
+            ),
+            MaintenanceRequest(
+                subject="Server Room Cooling Issue",
+                description="Temperature sensors showing higher than normal readings",
+                request_type="corrective",
+                status="new",
+                equipment_id=equipment_list[5].id,
+                maintenance_team_id=teams[2].id,
+                scheduled_date=today + timedelta(days=1),
+            ),
+            MaintenanceRequest(
+                subject="Compressor Pressure Check",
+                description="Quarterly pressure and safety valve check",
+                request_type="preventive",
+                status="repaired",
+                equipment_id=equipment_list[6].id,
+                maintenance_team_id=teams[1].id,
+                assigned_to=users[5].id,
+                scheduled_date=today - timedelta(days=5),
+            ),
+            MaintenanceRequest(
+                subject="Security Camera Firmware Update",
+                description="Update firmware on all security cameras",
+                request_type="preventive",
+                status="new",
+                equipment_id=equipment_list[7].id,
+                maintenance_team_id=teams[0].id,
+                scheduled_date=today + timedelta(days=7),
+            ),
         ]
-        
-        for data in requests_data:
-            # Check if similar request exists
-            existing = db.query(MaintenanceRequest).filter(
-                MaintenanceRequest.subject == data["subject"],
-                MaintenanceRequest.equipment_id == data.get("equipment_id")
-            ).first()
-            if not existing:
-                req = MaintenanceRequest(**data, created_by=users[1].id)
-                db.add(req)
-        
+        db.add_all(requests)
         db.commit()
-        print("✅ Database seeded successfully!")
-        print("\n📝 Login credentials:")
-        print("   Email: john@gearguard.com")
-        print("   Password: password123")
-        print("\n   (All users have password: password123)")
+        print(f"Created {len(requests)} maintenance requests")
+        
+        print("\nDatabase seeded successfully!")
+        print(f"  - Users: {len(users)}")
+        print(f"  - Teams: {len(teams)}")
+        print(f"  - Equipment: {len(equipment_list)}")
+        print(f"  - Requests: {len(requests)}")
         
     except Exception as e:
-        print(f"❌ Error seeding database: {e}")
+        print(f"Error seeding database: {e}")
         db.rollback()
         raise
     finally:
         db.close()
 
-
 if __name__ == "__main__":
-    seed_data()
+    seed_database()

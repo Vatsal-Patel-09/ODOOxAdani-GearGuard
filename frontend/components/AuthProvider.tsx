@@ -8,6 +8,7 @@ interface User {
     name: string
     email: string
     role: string
+    access_token?: string
 }
 
 interface AuthContextType {
@@ -37,7 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedUser = localStorage.getItem("user")
         if (storedUser) {
             try {
-                setUser(JSON.parse(storedUser))
+                const parsed = JSON.parse(storedUser)
+                // Validate that we have the required fields and token
+                if (parsed.id && parsed.email && parsed.access_token) {
+                    setUser(parsed)
+                } else {
+                    // Invalid user data, clear it
+                    localStorage.removeItem("user")
+                }
             } catch {
                 localStorage.removeItem("user")
             }

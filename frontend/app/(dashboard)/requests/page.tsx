@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, GripVertical, Clock, Play, CheckCircle, AlertTriangle } from "lucide-react"
+import { Plus, ClipboardList, Search, Filter, MoreHorizontal, Edit, Trash2, Eye, Clock, CheckCircle2, AlertCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     Dialog,
     DialogContent,
@@ -19,11 +19,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
     Select,
     SelectContent,
@@ -31,432 +27,391 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getRequests, createRequest, updateRequestStatus, updateRequest, getEquipments, getUsers, MaintenanceRequest, Equipment, User } from "@/lib/api"
+import { Textarea } from "@/components/ui/textarea"
 
-const STATUS_COLUMNS = [
-    { id: "new", label: "New", color: "bg-blue-500" },
-    { id: "in_progress", label: "In Progress", color: "bg-yellow-500" },
-    { id: "repaired", label: "Repaired", color: "bg-green-500" },
-    { id: "scrap", label: "Scrap", color: "bg-red-500" },
-]
+interface MaintenanceRequest {
+    id: string
+    title: string
+    description: string
+    status: string
+    priority: string
+    equipment_id: string
+    equipment_name: string
+    team_id: string
+    team_name: string
+    created_at: string
+    scheduled_date: string | null
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export default function RequestsPage() {
     const [requests, setRequests] = useState<MaintenanceRequest[]>([])
-    const [equipment, setEquipment] = useState<Equipment[]>([])
-    const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false)
-    const [completingRequest, setCompletingRequest] = useState<MaintenanceRequest | null>(null)
-    const [durationHours, setDurationHours] = useState("")
-    const [draggedRequest, setDraggedRequest] = useState<string | null>(null)
-    const [formData, setFormData] = useState({
-        subject: "",
+    const [searchQuery, setSearchQuery] = useState("")
+    const [statusFilter, setStatusFilter] = useState("all")
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+    const [newRequest, setNewRequest] = useState({
+        title: "",
         description: "",
-        request_type: "corrective",
+        priority: "medium",
         equipment_id: "",
-        assigned_to: "",
     })
 
-    const fetchData = async () => {
+    useEffect(() => {
+        fetchRequests()
+    }, [])
+
+    const fetchRequests = async () => {
         try {
-            const [requestsData, equipmentData, usersData] = await Promise.all([
-                getRequests(),
-                getEquipments(),
-                getUsers(),
-            ])
-            setRequests(requestsData)
-            setEquipment(equipmentData)
-            setUsers(usersData)
+            const response = await fetch(`${API_BASE_URL}/requests`)
+            if (response.ok) {
+                const data = await response.json()
+                setRequests(data)
+            }
         } catch (error) {
-            console.error("Failed to fetch data:", error)
+            console.error("Failed to fetch requests:", error)
         } finally {
             setLoading(false)
         }
     }
 
-    useEffect(() => {
-        fetchData()
-    }, [])
-
-    const handleCreateRequest = async (e: React.FormEvent) => {
-        e.preventDefault()
+    const handleAddRequest = async () => {
         try {
-            await createRequest({
-                subject: formData.subject,
-                description: formData.description || undefined,
-                request_type: formData.request_type,
-                equipment_id: formData.equipment_id || undefined,
+            const response = await fetch(`${API_BASE_URL}/requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newRequest),
             })
-            // If assigned_to is set, update the request
-            setIsDialogOpen(false)
-            setFormData({ subject: "", description: "", request_type: "corrective", equipment_id: "", assigned_to: "" })
-            fetchData()
+            if (response.ok) {
+                fetchRequests()
+                setIsAddDialogOpen(false)
+                setNewRequest({
+                    title: "",
+                    description: "",
+                    priority: "medium",
+                    equipment_id: "",
+                })
+            }
         } catch (error) {
-            console.error("Failed to create request:", error)
+            console.error("Failed to add request:", error)
         }
     }
 
-    const handleDragStart = (requestId: string) => {
-        setDraggedRequest(requestId)
-    }
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-    }
-
-    const handleDrop = async (status: string) => {
-        if (!draggedRequest) return
-
-        const request = requests.find(r => r.id === draggedRequest)
-
-        // If moving to "repaired", show duration dialog
-        if (status === "repaired" && request) {
-            setCompletingRequest(request)
-            setIsCompleteDialogOpen(true)
-            setDraggedRequest(null)
-            return
-        }
-
+    const handleDeleteRequest = async (id: string) => {
         try {
-            await updateRequestStatus(draggedRequest, status)
-            fetchData()
-        } catch (error) {
-            console.error("Failed to update status:", error)
-        }
-        setDraggedRequest(null)
-    }
-
-    const handleStartWork = async (requestId: string) => {
-        try {
-            // Set started_at and move to in_progress
-            await updateRequest(requestId, {
-                status: "in_progress",
-                started_at: new Date().toISOString(),
+            const response = await fetch(`${API_BASE_URL}/requests/${id}`, {
+                method: "DELETE",
             })
-            fetchData()
+            if (response.ok) {
+                fetchRequests()
+            }
         } catch (error) {
-            console.error("Failed to start work:", error)
+            console.error("Failed to delete request:", error)
         }
     }
 
-    const handleCompleteWork = async () => {
-        if (!completingRequest) return
+    const filteredRequests = requests.filter((request) => {
+        const matchesSearch =
+            request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            request.description.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesStatus = statusFilter === "all" || request.status === statusFilter
+        return matchesSearch && matchesStatus
+    })
 
-        try {
-            await updateRequest(completingRequest.id, {
-                status: "repaired",
-                completed_at: new Date().toISOString(),
-                duration_hours: durationHours ? parseFloat(durationHours) : undefined,
-            })
-            setIsCompleteDialogOpen(false)
-            setCompletingRequest(null)
-            setDurationHours("")
-            fetchData()
-        } catch (error) {
-            console.error("Failed to complete work:", error)
+    const getStatusIcon = (status: string) => {
+        switch (status.toLowerCase()) {
+            case "new":
+                return <AlertCircle className="h-4 w-4" />
+            case "in_progress":
+                return <Clock className="h-4 w-4" />
+            case "repaired":
+                return <CheckCircle2 className="h-4 w-4" />
+            case "scrap":
+                return <XCircle className="h-4 w-4" />
+            default:
+                return <ClipboardList className="h-4 w-4" />
         }
     }
 
-    const handleAssignTechnician = async (requestId: string, userId: string) => {
-        try {
-            await updateRequest(requestId, { assigned_to: userId })
-            fetchData()
-        } catch (error) {
-            console.error("Failed to assign technician:", error)
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case "new":
+                return "bg-[#3B82F6] text-white"
+            case "in_progress":
+                return "bg-[#F59E0B] text-white"
+            case "repaired":
+                return "bg-[#10B981] text-white"
+            case "scrap":
+                return "bg-[#EF4444] text-white"
+            default:
+                return "bg-[#6B7280] text-white"
         }
     }
 
-    const getRequestsByStatus = (status: string) => {
-        return requests.filter(r => r.status === status)
+    const getPriorityColor = (priority: string) => {
+        switch (priority.toLowerCase()) {
+            case "high":
+                return "text-[#EF4444] bg-[#EF4444]/10"
+            case "medium":
+                return "text-[#F59E0B] bg-[#F59E0B]/10"
+            case "low":
+                return "text-[#10B981] bg-[#10B981]/10"
+            default:
+                return "text-[#6B7280] bg-[#6B7280]/10"
+        }
     }
 
-    const getEquipmentName = (equipmentId: string | null) => {
-        if (!equipmentId) return null
-        const eq = equipment.find(e => e.id === equipmentId)
-        return eq?.name
+    const requestsByStatus = {
+        new: requests.filter((r) => r.status === "new").length,
+        in_progress: requests.filter((r) => r.status === "in_progress").length,
+        repaired: requests.filter((r) => r.status === "repaired").length,
+        scrap: requests.filter((r) => r.status === "scrap").length,
     }
-
-    const getUser = (userId: string | null) => {
-        if (!userId) return null
-        return users.find(u => u.id === userId)
-    }
-
-    const getInitials = (name: string) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    }
-
-    const isOverdue = (request: MaintenanceRequest) => {
-        if (!request.scheduled_date) return false
-        if (request.status === "repaired" || request.status === "scrap") return false
-        return new Date(request.scheduled_date) < new Date()
-    }
-
-    // Get technicians (users with role technician or any user for now)
-    const technicians = users.filter(u => u.role === "technician" || u.role === "user")
 
     if (loading) {
-        return <div className="flex items-center justify-center h-64">Loading...</div>
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-3.5rem)] bg-[#F9FAFB] dark:bg-background">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-10 h-10 border-3 border-[#714B67] border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm text-[#6B7280] dark:text-muted-foreground">Loading requests...</p>
+                </div>
+            </div>
+        )
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold">Maintenance Requests</h1>
-                    <p className="text-muted-foreground">Manage and track maintenance requests</p>
-                </div>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            New Request
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create Maintenance Request</DialogTitle>
-                            <DialogDescription>Submit a new maintenance request.</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleCreateRequest} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="subject">Subject *</Label>
-                                <Input
-                                    id="subject"
-                                    value={formData.subject}
-                                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                                    placeholder="e.g., Leaking Oil"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
-                                <Textarea
-                                    id="description"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    placeholder="Describe the issue..."
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Request Type *</Label>
-                                <Select
-                                    value={formData.request_type}
-                                    onValueChange={(value) => setFormData({ ...formData, request_type: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="corrective">Corrective (Breakdown)</SelectItem>
-                                        <SelectItem value="preventive">Preventive (Routine)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Equipment</Label>
-                                <Select
-                                    value={formData.equipment_id}
-                                    onValueChange={(value) => setFormData({ ...formData, equipment_id: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select equipment" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {equipment.filter(e => !e.is_scrapped).map((eq) => (
-                                            <SelectItem key={eq.id} value={eq.id}>
-                                                {eq.name} ({eq.serial_number})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Assign Technician</Label>
-                                <Select
-                                    value={formData.assigned_to}
-                                    onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select technician" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {technicians.map((user) => (
-                                            <SelectItem key={user.id} value={user.id}>
-                                                {user.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+        <div className="p-6 bg-[#F9FAFB] dark:bg-background min-h-[calc(100vh-3.5rem)]">
+            <div className="max-w-7xl mx-auto space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-semibold text-[#111827] dark:text-foreground">Maintenance Requests</h1>
+                        <p className="text-sm text-[#6B7280] dark:text-muted-foreground mt-0.5">Track and manage maintenance requests</p>
+                    </div>
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-[#714B67] hover:bg-[#5d3d56] text-white">
+                                <Plus className="h-4 w-4 mr-2" />
+                                New Request
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-white dark:bg-card">
+                            <DialogHeader>
+                                <DialogTitle className="text-[#111827] dark:text-foreground">Create Maintenance Request</DialogTitle>
+                                <DialogDescription className="text-[#6B7280] dark:text-muted-foreground">
+                                    Submit a new maintenance request for equipment.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="title" className="text-[#374151] dark:text-foreground">Title</Label>
+                                    <Input
+                                        id="title"
+                                        value={newRequest.title}
+                                        onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })}
+                                        className="border-[#E5E7EB] dark:border-border"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="description" className="text-[#374151] dark:text-foreground">Description</Label>
+                                    <Textarea
+                                        id="description"
+                                        value={newRequest.description}
+                                        onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })}
+                                        className="border-[#E5E7EB] dark:border-border"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="priority" className="text-[#374151] dark:text-foreground">Priority</Label>
+                                    <Select
+                                        value={newRequest.priority}
+                                        onValueChange={(value) => setNewRequest({ ...newRequest, priority: value })}
+                                    >
+                                        <SelectTrigger className="border-[#E5E7EB] dark:border-border">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <DialogFooter>
-                                <Button type="submit">Create Request</Button>
+                                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleAddRequest} className="bg-[#714B67] hover:bg-[#5d3d56] text-white">
+                                    Submit Request
+                                </Button>
                             </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {STATUS_COLUMNS.map((column) => (
-                    <div
-                        key={column.id}
-                        className="rounded-lg border bg-card"
-                        onDragOver={handleDragOver}
-                        onDrop={() => handleDrop(column.id)}
-                    >
-                        <div className="p-4 border-b">
-                            <div className="flex items-center gap-2">
-                                <div className={`h-3 w-3 rounded-full ${column.color}`} />
-                                <h3 className="font-semibold">{column.label}</h3>
-                                <Badge variant="secondary" className="ml-auto">
-                                    {getRequestsByStatus(column.id).length}
-                                </Badge>
+                {/* Status Cards */}
+                <div className="grid gap-4 md:grid-cols-4">
+                    <div className="bg-[#EFF6FF] dark:bg-[#3B82F6]/10 border border-[#BFDBFE] dark:border-[#3B82F6]/30 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-[#3B82F6] rounded-lg flex items-center justify-center">
+                                <span className="text-lg font-bold text-white">{requestsByStatus.new}</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-[#111827] dark:text-foreground">New</p>
+                                <p className="text-xs text-[#6B7280] dark:text-muted-foreground">Pending review</p>
                             </div>
                         </div>
-                        <div className="p-2 space-y-2 min-h-[200px]">
-                            {getRequestsByStatus(column.id).map((request) => {
-                                const assignedUser = getUser(request.assigned_to)
-                                const overdue = isOverdue(request)
-
-                                return (
-                                    <Card
-                                        key={request.id}
-                                        draggable
-                                        onDragStart={() => handleDragStart(request.id)}
-                                        className={`cursor-grab active:cursor-grabbing transition-all ${overdue ? "border-red-500 border-2 bg-red-50 dark:bg-red-950/20" : ""
-                                            }`}
-                                    >
-                                        <CardHeader className="p-3 pb-2">
-                                            <div className="flex items-start gap-2">
-                                                <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                                                <div className="flex-1 min-w-0">
-                                                    <CardTitle className="text-sm font-medium truncate">{request.subject}</CardTitle>
-                                                    {getEquipmentName(request.equipment_id) && (
-                                                        <CardDescription className="text-xs truncate">
-                                                            {getEquipmentName(request.equipment_id)}
-                                                        </CardDescription>
-                                                    )}
-                                                </div>
-                                                {/* Assigned Technician Avatar */}
-                                                {assignedUser ? (
-                                                    <Avatar className="h-6 w-6 flex-shrink-0">
-                                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                                            {getInitials(assignedUser.name)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                ) : (
-                                                    <Select onValueChange={(value) => handleAssignTechnician(request.id, value)}>
-                                                        <SelectTrigger className="h-6 w-6 p-0 border-dashed">
-                                                            <span className="text-xs">+</span>
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {technicians.map((user) => (
-                                                                <SelectItem key={user.id} value={user.id}>
-                                                                    {user.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="p-3 pt-0 space-y-2">
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                                                <Badge variant={request.request_type === "corrective" ? "destructive" : "secondary"} className="text-xs">
-                                                    {request.request_type}
-                                                </Badge>
-                                                {request.scheduled_date && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {new Date(request.scheduled_date).toLocaleDateString()}
-                                                    </span>
-                                                )}
-                                                {request.duration_hours && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {request.duration_hours}h
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Overdue indicator */}
-                                            {overdue && (
-                                                <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
-                                                    <AlertTriangle className="h-3 w-3" />
-                                                    Overdue
-                                                </div>
-                                            )}
-
-                                            {/* Action buttons */}
-                                            {request.status === "new" && assignedUser && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full h-7 text-xs"
-                                                    onClick={() => handleStartWork(request.id)}
-                                                >
-                                                    <Play className="h-3 w-3 mr-1" />
-                                                    Start Work
-                                                </Button>
-                                            )}
-                                            {request.status === "in_progress" && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full h-7 text-xs"
-                                                    onClick={() => {
-                                                        setCompletingRequest(request)
-                                                        setIsCompleteDialogOpen(true)
-                                                    }}
-                                                >
-                                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                                    Mark Complete
-                                                </Button>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )
-                            })}
+                    </div>
+                    <div className="bg-[#FFFBEB] dark:bg-[#F59E0B]/10 border border-[#FDE68A] dark:border-[#F59E0B]/30 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-[#F59E0B] rounded-lg flex items-center justify-center">
+                                <span className="text-lg font-bold text-white">{requestsByStatus.in_progress}</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-[#111827] dark:text-foreground">In Progress</p>
+                                <p className="text-xs text-[#6B7280] dark:text-muted-foreground">Being worked on</p>
+                            </div>
                         </div>
                     </div>
-                ))}
-            </div>
+                    <div className="bg-[#ECFDF5] dark:bg-[#10B981]/10 border border-[#A7F3D0] dark:border-[#10B981]/30 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-[#10B981] rounded-lg flex items-center justify-center">
+                                <span className="text-lg font-bold text-white">{requestsByStatus.repaired}</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-[#111827] dark:text-foreground">Repaired</p>
+                                <p className="text-xs text-[#6B7280] dark:text-muted-foreground">Completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-[#FEF2F2] dark:bg-[#EF4444]/10 border border-[#FECACA] dark:border-[#EF4444]/30 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-[#EF4444] rounded-lg flex items-center justify-center">
+                                <span className="text-lg font-bold text-white">{requestsByStatus.scrap}</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-[#111827] dark:text-foreground">Scrapped</p>
+                                <p className="text-xs text-[#6B7280] dark:text-muted-foreground">Disposed</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            {/* Complete Work Dialog */}
-            <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Complete Maintenance</DialogTitle>
-                        <DialogDescription>
-                            Record the time spent on this repair: {completingRequest?.subject}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="duration">Duration (hours)</Label>
+                {/* Search and Filter */}
+                <div className="bg-white dark:bg-card rounded-lg border border-[#E5E7EB] dark:border-border p-4">
+                    <div className="flex items-center gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF] dark:text-muted-foreground" />
                             <Input
-                                id="duration"
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={durationHours}
-                                onChange={(e) => setDurationHours(e.target.value)}
-                                placeholder="e.g., 2.5"
+                                placeholder="Search requests..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10 border-[#E5E7EB] dark:border-border"
                             />
                         </div>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px] border-[#E5E7EB] dark:border-border">
+                                <Filter className="h-4 w-4 mr-2" />
+                                <SelectValue placeholder="Filter by status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="repaired">Repaired</SelectItem>
+                                <SelectItem value="scrap">Scrapped</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCompleteWork}>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Complete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                </div>
+
+                {/* Requests Table */}
+                <div className="bg-white dark:bg-card rounded-lg border border-[#E5E7EB] dark:border-border">
+                    <div className="px-5 py-4 border-b border-[#E5E7EB] dark:border-border">
+                        <h2 className="text-base font-semibold text-[#111827] dark:text-foreground">All Requests</h2>
+                        <p className="text-sm text-[#6B7280] dark:text-muted-foreground mt-0.5">
+                            {filteredRequests.length} requests found
+                        </p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-[#E5E7EB] dark:border-border bg-[#F9FAFB] dark:bg-muted/50">
+                                    <th className="text-left py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Request</th>
+                                    <th className="text-left py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Status</th>
+                                    <th className="text-left py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Priority</th>
+                                    <th className="text-left py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Equipment</th>
+                                    <th className="text-left py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Date</th>
+                                    <th className="text-right py-3 px-5 text-xs font-medium text-[#6B7280] dark:text-muted-foreground uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredRequests.map((request) => (
+                                    <tr key={request.id} className="border-b border-[#E5E7EB] dark:border-border hover:bg-[#F9FAFB] dark:hover:bg-muted/50 transition-colors">
+                                        <td className="py-4 px-5">
+                                            <div>
+                                                <p className="font-medium text-[#111827] dark:text-foreground">{request.title}</p>
+                                                <p className="text-sm text-[#6B7280] dark:text-muted-foreground line-clamp-1">{request.description}</p>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-5">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                                                {getStatusIcon(request.status)}
+                                                {request.status.replace("_", " ")}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-5">
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                                                {request.priority}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-5 text-[#6B7280] dark:text-muted-foreground">
+                                            {request.equipment_name || "N/A"}
+                                        </td>
+                                        <td className="py-4 px-5 text-[#6B7280] dark:text-muted-foreground text-sm">
+                                            {new Date(request.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="py-4 px-5 text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem>
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        View Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem>
+                                                        <Edit className="h-4 w-4 mr-2" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-[#EF4444]"
+                                                        onClick={() => handleDeleteRequest(request.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4 mr-2" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredRequests.length === 0 && (
+                            <div className="text-center py-12">
+                                <ClipboardList className="h-12 w-12 text-[#E5E7EB] dark:text-muted mx-auto mb-4" />
+                                <p className="text-[#6B7280] dark:text-muted-foreground">No requests found</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

@@ -7,8 +7,6 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
@@ -21,16 +19,14 @@ import {
     ClipboardList,
     Calendar,
     LogOut,
-    Home
+    LayoutDashboard
 } from "lucide-react"
-import { ThemeToggle } from "./theme-toggle"
-import { Button } from "./ui/button"
 
 const navItems = [
     {
         title: "Dashboard",
         url: "/dashboard",
-        icon: Home,
+        icon: LayoutDashboard,
     },
     {
         title: "Equipment",
@@ -64,38 +60,34 @@ export function AppSidebar() {
 
     return (
         <Sidebar>
-            <SidebarHeader className="border-b px-4 py-3">
-                <Link href="/dashboard" className="flex items-center gap-2">
-                    <Settings className="h-6 w-6 text-primary" />
-                    <span className="text-lg font-bold text-primary">GearGuard</span>
-                </Link>
+            <SidebarHeader className="border-b border-sidebar-border">
+               
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {navItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild isActive={pathname === item.url}>
-                                        <Link href={item.url}>
-                                            <item.icon className="h-4 w-4" />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
+                    <SidebarMenu>
+                        {navItems.map((item) => (
+                            <SidebarMenuItem key={item.url}>
+                                <SidebarMenuButton asChild isActive={pathname === item.url}>
+                                    <Link href={item.url}>
+                                        <item.icon className="h-4 w-4" />
+                                        <span>{item.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
-            <SidebarFooter className="border-t p-4">
-                <div className="flex items-center justify-between">
-                    <ThemeToggle />
-                    <Button variant="ghost" size="icon" onClick={handleLogout}>
-                        <LogOut className="h-4 w-4" />
-                    </Button>
-                </div>
+            <SidebarFooter className="border-t border-sidebar-border">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton onClick={handleLogout}>
+                            <LogOut className="h-4 w-4" />
+                            <span>Logout</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarFooter>
         </Sidebar>
     )
