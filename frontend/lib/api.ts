@@ -6,6 +6,8 @@ export interface AuthResponse {
   name: string;
   email: string;
   role: string;
+  access_token: string;
+  token_type: string;
   message: string;
 }
 
@@ -67,19 +69,72 @@ export interface User {
   created_at: string;
 }
 
-// Helper function for API calls
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+// Helper function to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add Authorization header if token exists
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  return headers;
+}
+
+// Helper function for API calls with toast notifications
+async function apiFetch<T>(url: string, options?: RequestInit, showToast: boolean = true): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       ...options?.headers,
     },
   });
 
   if (!response.ok) {
-    const error: ApiError = await response.json();
-    throw new Error(error.detail || 'API request failed');
+    let errorMessage = 'API request failed';
+    try {
+      const error: ApiError = await response.json();
+      errorMessage = error.detail || errorMessage;
+    } catch {
+      // If JSON parsing fails, use status text
+      errorMessage = response.statusText || errorMessage;
+    }
+
+    // Show toast for specific error codes
+    if (showToast && typeof window !== 'undefined') {
+      // Dynamically import toast to avoid SSR issues
+      import('sonner').then(({ toast }) => {
+        if (response.status === 401) {
+          toast.error('Unauthorized', {
+            description: 'Please log in to access this resource',
+          });
+        } else if (response.status === 403) {
+          toast.error('Access Denied', {
+            description: errorMessage,
+          });
+        } else if (response.status === 400) {
+          toast.warning('Invalid Request', {
+            description: errorMessage,
+          });
+        } else if (response.status === 404) {
+          toast.error('Not Found', {
+            description: errorMessage,
+          });
+        } else {
+          toast.error('Error', {
+            description: errorMessage,
+          });
+        }
+      });
+    }
+
+    throw new Error(errorMessage);
   }
 
   // Handle 204 No Content

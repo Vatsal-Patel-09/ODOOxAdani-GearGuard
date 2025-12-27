@@ -23,10 +23,16 @@ export default function SignIn() {
 
         try {
             const response = await login(email, password)
-            // Store user info in localStorage
-            localStorage.setItem('user', JSON.stringify(response))
-            // Redirect to home or dashboard
-            router.push('/')
+            // Store user info and token in localStorage
+            localStorage.setItem('user', JSON.stringify({
+                id: response.id,
+                name: response.name,
+                email: response.email,
+                role: response.role,
+            }))
+            localStorage.setItem('access_token', response.access_token)
+            // Redirect to dashboard
+            router.push('/dashboard')
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed')
         } finally {
