@@ -26,3 +26,4 @@ __all__ = [
     "EquipmentScrapLog",
 ]
 
+from app.db.session import engine, SessionLocal
