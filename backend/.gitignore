@@ -1,7 +1,9 @@
 venv/
 __pycache__/
+alembic/__pycache__/
+app/__pycache__/
 *.pyc
-.env
+*.env
 .DS_Store
 *.egg-info/
 dist/
