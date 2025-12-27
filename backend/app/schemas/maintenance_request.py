@@ -1,7 +1,7 @@
 """Maintenance Request Pydantic schemas."""
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID

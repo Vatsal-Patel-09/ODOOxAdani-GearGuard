@@ -82,10 +82,7 @@ export default function SignIn() {
                   Password
                 </Label>
                 <Button asChild variant="link" size="sm">
-                  <Link
-                    href="#"
-                    className="link intent-info variant-ghost text-sm"
-                  >
+                  <Link href="#" className="text-sm">
                     Forgot your Password ?
                   </Link>
                 </Button>
@@ -115,7 +112,7 @@ export default function SignIn() {
           </div>
         </div>
 
-        <div className="rounded-(--radius) p-3">
+        <div className="p-3">
           <p className="text-accent-foreground text-center text-sm">
             Don&apos;t have an account ?
             <Button asChild variant="link" className="px-2">

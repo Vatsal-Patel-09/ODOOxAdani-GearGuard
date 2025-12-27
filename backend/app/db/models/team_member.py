@@ -24,4 +24,3 @@ class TeamMember(Base):
     # Relationships
     team = relationship("MaintenanceTeam", backref="members")
     user = relationship("User", backref="team_memberships")
-

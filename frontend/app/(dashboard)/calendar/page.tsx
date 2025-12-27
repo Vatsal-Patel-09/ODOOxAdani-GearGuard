@@ -22,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getCalendarRequests, createRequest, getEquipments, MaintenanceRequest, Equipment } from "@/lib/api"
+import { requestsApi, equipmentApi, MaintenanceRequest, Equipment } from "@/lib/api"
 
 export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date())
@@ -45,8 +45,8 @@ export default function CalendarPage() {
             const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
 
             const [requestsData, equipmentData] = await Promise.all([
-                getCalendarRequests(startDate, endDate),
-                getEquipments(),
+                requestsApi.getCalendar(startDate, endDate),
+                equipmentApi.list(),
             ])
             setRequests(requestsData)
             setEquipment(equipmentData)
@@ -66,7 +66,7 @@ export default function CalendarPage() {
         if (!selectedDate) return
 
         try {
-            await createRequest({
+            await requestsApi.create({
                 subject: formData.subject,
                 description: formData.description || undefined,
                 request_type: "preventive",

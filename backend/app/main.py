@@ -1,6 +1,6 @@
 """
 GearGuard API - Maintenance Management System
-FastAPI application entry point.
+FastAPI application entry point (alternative entry in app/).
 """
 
 from fastapi import FastAPI
@@ -13,15 +13,11 @@ from app.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    # Startup
     print(f"🚀 Starting {settings.APP_NAME}...")
     yield
-    # Shutdown
     print(f"👋 Shutting down {settings.APP_NAME}...")
 
 
-# Create FastAPI application
 app = FastAPI(
     title=settings.APP_NAME,
     description="The Ultimate Maintenance Tracker for Equipment and Work Centers",
@@ -31,7 +27,6 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Configure CORS
 origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS != "*" else ["*"]
 
 app.add_middleware(
@@ -42,19 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API routes
 app.include_router(api_router, prefix="/api")
 
 
 @app.get("/")
 async def root():
-    """Root endpoint - API health check."""
-    return {
-        "name": settings.APP_NAME,
-        "status": "healthy",
-        "version": "1.0.0",
-        "docs": "/docs",
-    }
+    return {"name": settings.APP_NAME, "status": "healthy", "version": "1.0.0", "docs": "/docs"}
 
 
 @app.get("/health")
