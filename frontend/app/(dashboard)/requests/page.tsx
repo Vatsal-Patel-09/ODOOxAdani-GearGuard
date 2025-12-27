@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, GripVertical, Clock, User } from "lucide-react"
+import { Plus, GripVertical, Clock, Play, CheckCircle, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     Card,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
     Select,
     SelectContent,
@@ -30,7 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getRequests, createRequest, updateRequestStatus, getEquipments, MaintenanceRequest, Equipment } from "@/lib/api"
+import { getRequests, createRequest, updateRequestStatus, updateRequest, getEquipments, getUsers, MaintenanceRequest, Equipment, User } from "@/lib/api"
 
 const STATUS_COLUMNS = [
     { id: "new", label: "New", color: "bg-blue-500" },
@@ -42,24 +43,31 @@ const STATUS_COLUMNS = [
 export default function RequestsPage() {
     const [requests, setRequests] = useState<MaintenanceRequest[]>([])
     const [equipment, setEquipment] = useState<Equipment[]>([])
+    const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false)
+    const [completingRequest, setCompletingRequest] = useState<MaintenanceRequest | null>(null)
+    const [durationHours, setDurationHours] = useState("")
     const [draggedRequest, setDraggedRequest] = useState<string | null>(null)
     const [formData, setFormData] = useState({
         subject: "",
         description: "",
         request_type: "corrective",
         equipment_id: "",
+        assigned_to: "",
     })
 
     const fetchData = async () => {
         try {
-            const [requestsData, equipmentData] = await Promise.all([
+            const [requestsData, equipmentData, usersData] = await Promise.all([
                 getRequests(),
                 getEquipments(),
+                getUsers(),
             ])
             setRequests(requestsData)
             setEquipment(equipmentData)
+            setUsers(usersData)
         } catch (error) {
             console.error("Failed to fetch data:", error)
         } finally {
@@ -80,8 +88,9 @@ export default function RequestsPage() {
                 request_type: formData.request_type,
                 equipment_id: formData.equipment_id || undefined,
             })
+            // If assigned_to is set, update the request
             setIsDialogOpen(false)
-            setFormData({ subject: "", description: "", request_type: "corrective", equipment_id: "" })
+            setFormData({ subject: "", description: "", request_type: "corrective", equipment_id: "", assigned_to: "" })
             fetchData()
         } catch (error) {
             console.error("Failed to create request:", error)
@@ -99,6 +108,16 @@ export default function RequestsPage() {
     const handleDrop = async (status: string) => {
         if (!draggedRequest) return
 
+        const request = requests.find(r => r.id === draggedRequest)
+
+        // If moving to "repaired", show duration dialog
+        if (status === "repaired" && request) {
+            setCompletingRequest(request)
+            setIsCompleteDialogOpen(true)
+            setDraggedRequest(null)
+            return
+        }
+
         try {
             await updateRequestStatus(draggedRequest, status)
             fetchData()
@@ -106,6 +125,46 @@ export default function RequestsPage() {
             console.error("Failed to update status:", error)
         }
         setDraggedRequest(null)
+    }
+
+    const handleStartWork = async (requestId: string) => {
+        try {
+            // Set started_at and move to in_progress
+            await updateRequest(requestId, {
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+            })
+            fetchData()
+        } catch (error) {
+            console.error("Failed to start work:", error)
+        }
+    }
+
+    const handleCompleteWork = async () => {
+        if (!completingRequest) return
+
+        try {
+            await updateRequest(completingRequest.id, {
+                status: "repaired",
+                completed_at: new Date().toISOString(),
+                duration_hours: durationHours ? parseFloat(durationHours) : undefined,
+            })
+            setIsCompleteDialogOpen(false)
+            setCompletingRequest(null)
+            setDurationHours("")
+            fetchData()
+        } catch (error) {
+            console.error("Failed to complete work:", error)
+        }
+    }
+
+    const handleAssignTechnician = async (requestId: string, userId: string) => {
+        try {
+            await updateRequest(requestId, { assigned_to: userId })
+            fetchData()
+        } catch (error) {
+            console.error("Failed to assign technician:", error)
+        }
     }
 
     const getRequestsByStatus = (status: string) => {
@@ -118,10 +177,23 @@ export default function RequestsPage() {
         return eq?.name
     }
 
+    const getUser = (userId: string | null) => {
+        if (!userId) return null
+        return users.find(u => u.id === userId)
+    }
+
+    const getInitials = (name: string) => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    }
+
     const isOverdue = (request: MaintenanceRequest) => {
         if (!request.scheduled_date) return false
+        if (request.status === "repaired" || request.status === "scrap") return false
         return new Date(request.scheduled_date) < new Date()
     }
+
+    // Get technicians (users with role technician or any user for now)
+    const technicians = users.filter(u => u.role === "technician" || u.role === "user")
 
     if (loading) {
         return <div className="flex items-center justify-center h-64">Loading...</div>
@@ -199,6 +271,24 @@ export default function RequestsPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <div className="space-y-2">
+                                <Label>Assign Technician</Label>
+                                <Select
+                                    value={formData.assigned_to}
+                                    onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select technician" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {technicians.map((user) => (
+                                            <SelectItem key={user.id} value={user.id}>
+                                                {user.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <DialogFooter>
                                 <Button type="submit">Create Request</Button>
                             </DialogFooter>
@@ -225,49 +315,148 @@ export default function RequestsPage() {
                             </div>
                         </div>
                         <div className="p-2 space-y-2 min-h-[200px]">
-                            {getRequestsByStatus(column.id).map((request) => (
-                                <Card
-                                    key={request.id}
-                                    draggable
-                                    onDragStart={() => handleDragStart(request.id)}
-                                    className={`cursor-grab active:cursor-grabbing ${isOverdue(request) ? "border-red-500 border-2" : ""
-                                        }`}
-                                >
-                                    <CardHeader className="p-3 pb-2">
-                                        <div className="flex items-start gap-2">
-                                            <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                            <div className="flex-1">
-                                                <CardTitle className="text-sm font-medium">{request.subject}</CardTitle>
-                                                {getEquipmentName(request.equipment_id) && (
-                                                    <CardDescription className="text-xs">
-                                                        {getEquipmentName(request.equipment_id)}
-                                                    </CardDescription>
+                            {getRequestsByStatus(column.id).map((request) => {
+                                const assignedUser = getUser(request.assigned_to)
+                                const overdue = isOverdue(request)
+
+                                return (
+                                    <Card
+                                        key={request.id}
+                                        draggable
+                                        onDragStart={() => handleDragStart(request.id)}
+                                        className={`cursor-grab active:cursor-grabbing transition-all ${overdue ? "border-red-500 border-2 bg-red-50 dark:bg-red-950/20" : ""
+                                            }`}
+                                    >
+                                        <CardHeader className="p-3 pb-2">
+                                            <div className="flex items-start gap-2">
+                                                <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <CardTitle className="text-sm font-medium truncate">{request.subject}</CardTitle>
+                                                    {getEquipmentName(request.equipment_id) && (
+                                                        <CardDescription className="text-xs truncate">
+                                                            {getEquipmentName(request.equipment_id)}
+                                                        </CardDescription>
+                                                    )}
+                                                </div>
+                                                {/* Assigned Technician Avatar */}
+                                                {assignedUser ? (
+                                                    <Avatar className="h-6 w-6 flex-shrink-0">
+                                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                                            {getInitials(assignedUser.name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                ) : (
+                                                    <Select onValueChange={(value) => handleAssignTechnician(request.id, value)}>
+                                                        <SelectTrigger className="h-6 w-6 p-0 border-dashed">
+                                                            <span className="text-xs">+</span>
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {technicians.map((user) => (
+                                                                <SelectItem key={user.id} value={user.id}>
+                                                                    {user.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 )}
                                             </div>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-3 pt-0">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Badge variant={request.request_type === "corrective" ? "destructive" : "secondary"} className="text-xs">
-                                                {request.request_type}
-                                            </Badge>
-                                            {request.scheduled_date && (
-                                                <span className="flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    {new Date(request.scheduled_date).toLocaleDateString()}
-                                                </span>
+                                        </CardHeader>
+                                        <CardContent className="p-3 pt-0 space-y-2">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                                                <Badge variant={request.request_type === "corrective" ? "destructive" : "secondary"} className="text-xs">
+                                                    {request.request_type}
+                                                </Badge>
+                                                {request.scheduled_date && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        {new Date(request.scheduled_date).toLocaleDateString()}
+                                                    </span>
+                                                )}
+                                                {request.duration_hours && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        {request.duration_hours}h
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Overdue indicator */}
+                                            {overdue && (
+                                                <div className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    Overdue
+                                                </div>
                                             )}
-                                        </div>
-                                        {isOverdue(request) && (
-                                            <p className="text-xs text-red-500 mt-1 font-medium">Overdue</p>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))}
+
+                                            {/* Action buttons */}
+                                            {request.status === "new" && assignedUser && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-7 text-xs"
+                                                    onClick={() => handleStartWork(request.id)}
+                                                >
+                                                    <Play className="h-3 w-3 mr-1" />
+                                                    Start Work
+                                                </Button>
+                                            )}
+                                            {request.status === "in_progress" && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-7 text-xs"
+                                                    onClick={() => {
+                                                        setCompletingRequest(request)
+                                                        setIsCompleteDialogOpen(true)
+                                                    }}
+                                                >
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    Mark Complete
+                                                </Button>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })}
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* Complete Work Dialog */}
+            <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Complete Maintenance</DialogTitle>
+                        <DialogDescription>
+                            Record the time spent on this repair: {completingRequest?.subject}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="duration">Duration (hours)</Label>
+                            <Input
+                                id="duration"
+                                type="number"
+                                step="0.5"
+                                min="0"
+                                value={durationHours}
+                                onChange={(e) => setDurationHours(e.target.value)}
+                                placeholder="e.g., 2.5"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCompleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleCompleteWork}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Complete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
