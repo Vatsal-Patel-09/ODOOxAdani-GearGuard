@@ -1,36 +1,279 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GearGuard - The Ultimate Maintenance Tracker
 
-## Getting Started
+A comprehensive maintenance management system  enabling companies to track assets and manage maintenance requests with RBAC, RACI matrix, workflow state machine, auto-fill, scrap logic, team-scoped access, and more.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Demo Credentials](#-demo-credentials)
+- [API Documentation](#-api-documentation)
+- [User Roles & Permissions](#-user-roles--permissions)
+
+---
+Video Link: https://www.youtube.com/watch?v=m7mLU0dOr6o
+--
+
+## Demo Video and Images 
+
+| | |
+|:---:|:---:|
+| ![Dashboard](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/dashboard.png?raw=true) | ![equiqment](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/equiement.png?raw=true) |
+| ![requests](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/requets.png?raw=true) | ![smart](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/smart.png?raw=true) |
+| ![teams](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/teams.png?raw=true) | ![calender](https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/calender.png?raw=true) |
+
+---
+## Database Architecture 
+
+<img src="https://github.com/Vatsal-Patel-09/ODOOxAdani-GearGuard/blob/dhruv/Assests/database%20schema.png?raw=true" alt="Database Architecture">
+
+---
+
+## ✨ Features
+
+### Core Functionality
+
+| Feature | Description |
+|---------|-------------|
+| **Equipment Management** | Track machines, vehicles, computers with department & location |
+| **Maintenance Teams** | Create specialized teams (Mechanics, Electricians, IT) |
+| **Maintenance Requests** | Corrective (breakdown) & Preventive (scheduled) requests |
+| **Kanban Board** | Drag & drop workflow: New → In Progress → Repaired → Scrap |
+| **Calendar View** | Schedule and visualize preventive maintenance |
+| **Smart Button** | Equipment detail shows count of open requests |
+
+### Security & Workflow
+
+| Feature | Description |
+|---------|-------------|
+| **JWT Authentication** | Secure token-based auth with role information |
+| **Role-Based Access Control** | 4 roles: Admin, Manager, Technician, User |
+| **Team-Scoped Access** | Technicians only see their team's requests |
+| **Status State Machine** | Enforced workflow transitions |
+| **Scrap Logic** | Scrapping equipment marks it as unusable |
+| **Auto-Fill** | Request auto-inherits team from equipment |
+
+---
+
+## 🛠 Tech Stack
+
+### Backend
+- **FastAPI** - Modern Python web framework
+- **SQLAlchemy** - ORM for database operations
+- **PostgreSQL** database
+- **Alembic** - Database migrations
+- **PyJWT** - JWT token handling
+- **Passlib + Bcrypt** - Password hashing
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe JavaScript
+- **shadcn/ui** - Beautiful UI components
+- **Tailwind CSS** - Utility-first styling
+- **Lucide Icons** - Icon library
+
+---
+
+
+### Backend Structure
+```
+backend/
+├── app/
+│   ├── api/           # REST API routes
+│   │   ├── auth.py    # Login, register, /me
+│   │   ├── equipment.py
+│   │   ├── teams.py
+│   │   ├── requests.py
+│   │   └── deps.py    # get_current_user, require_role
+│   ├── core/
+│   │   ├── jwt.py     # Token creation/verification
+│   │   └── workflow.py # Status state machine
+│   ├── db/
+│   │   ├── models/    # SQLAlchemy models
+│   │   └── session.py # Database connection
+│   ├── schemas/       # Pydantic schemas
+│   ├── services/      # Business logic
+│   └── seed.py        # Demo data seeder
+├── alembic/           # Migrations
+└── requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Frontend Structure
+```
+frontend/
+├── app/
+│   ├── (auth)/        # Login & Register pages
+│   ├── (dashboard)/   # Protected pages
+│   │   ├── dashboard/ # Stats overview
+│   │   ├── equipment/ # Equipment list + [id] detail
+│   │   ├── teams/     # Team management
+│   │   ├── requests/  # Kanban board
+│   │   └── calendar/  # Preventive scheduling
+│   └── layout.tsx     # Root layout with AuthProvider
+├── components/
+│   ├── AuthProvider.tsx
+│   ├── AppSidebar.tsx
+│   └── ui/            # shadcn components
+└── lib/
+    └── api.ts         # API client functions
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚀 Installation
 
-## Learn More
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL database
 
-To learn more about Next.js, take a look at the following resources:
+### Backend Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd backend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
 
-## Deploy on Vercel
+# Install dependencies
+pip install -r requirements.txt
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Configure environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Run migrations
+alembic upgrade head
+
+# Seed demo data
+python -m app.seed
+
+# Start server
+uvicorn app.main:app --reload
+```
+
+### Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+---
+
+## 🔑 Demo Credentials
+
+All passwords: `demo123`
+
+| Role | Email | Permissions |
+|------|-------|-------------|
+| **Admin** | `admin@gearguard.com` | Full access - teams, scrap, delete |
+| **Manager** | `manager@gearguard.com` | Equipment, preventive requests, assign anyone |
+| **Technician** | `tech.mike@gearguard.com` | Mechanics team only, self-assign |
+| **Technician** | `tech.alex@gearguard.com` | IT Support team only |
+| **User** | `user@gearguard.com` | Create corrective, view own requests |
+
+---
+
+## 📚 API Documentation
+
+Interactive API docs available at: `http://localhost:8000/docs`
+
+### Key Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/auth/register` | Register new user | Public |
+| POST | `/auth/login` | Login, get JWT | Public |
+| GET | `/auth/me` | Get current user | Bearer |
+| GET | `/equipment` | List equipment | Bearer |
+| POST | `/equipment` | Create equipment | Manager+ |
+| GET | `/equipment/{id}` | Equipment detail | Bearer |
+| GET | `/equipment/{id}/request-count` | Smart button count | Bearer |
+| GET | `/teams` | List teams | Bearer |
+| POST | `/teams` | Create team | Admin |
+| GET | `/requests` | List requests (team-scoped) | Bearer |
+| POST | `/requests` | Create request | Bearer |
+| PATCH | `/requests/{id}/status` | Update status (state machine) | Technician+ |
+| GET | `/requests/calendar` | Calendar view | Bearer |
+| GET | `/stats` | Dashboard statistics | Bearer |
+
+---
+
+## 👥 User Roles & Permissions
+
+### Permission Matrix
+
+| Action | User | Technician | Manager | Admin |
+|--------|:----:|:----------:|:-------:|:-----:|
+| View equipment | ✅ | ✅ | ✅ | ✅ |
+| Create equipment | ❌ | ❌ | ✅ | ✅ |
+| Delete equipment | ❌ | ❌ | ❌ | ✅ |
+| Manage teams | ❌ | ❌ | ❌ | ✅ |
+| Create corrective request | ✅ | ✅ | ✅ | ✅ |
+| Create preventive request | ❌ | ❌ | ✅ | ✅ |
+| Assign to self | ❌ | ✅ | ✅ | ✅ |
+| Assign to others | ❌ | ❌ | ✅ | ✅ |
+| Update status | ❌ | ✅ | ✅ | ✅ |
+| Move to scrap | ❌ | ❌ | ❌ | ✅ |
+
+### Team-Scoped Access
+
+- **Technicians** only see requests assigned to their team(s)
+- **Users** only see requests they created
+- **Managers/Admins** see all requests
+
+---
+
+## 🔄 Status Workflow (State Machine)
+
+```
+┌─────┐     ┌─────────────┐     ┌──────────┐     ┌───────┐
+│ New │────▶│ In Progress │────▶│ Repaired │────▶│ Scrap │
+└─────┘     └─────────────┘     └──────────┘     └───────┘
+                  │                                  ▲
+                  │                                  │
+                  └──────────── (back to new) ──────┘
+                                              (admin only)
+```
+
+Invalid transitions return `400 Bad Request`.
+
+---
+
+## 📁 Environment Variables
+
+### Backend (.env)
+```
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+JWT_SECRET_KEY=your-secret-key-here
+```
+
+---
+
+
+
+
+## 📄 License
+
+Built for ODOO x Adani Hackathon 2025 - 26
+
+---
+
+## 👨‍💻 Author
+
+Vatsal <br>
+Prince <br>
+Siddhant <br>
+Dhruv
