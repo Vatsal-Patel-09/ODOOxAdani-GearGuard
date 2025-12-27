@@ -21,7 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { getEquipment, getEquipmentRequests, getEquipmentRequestCount, Equipment, MaintenanceRequest } from "@/lib/api"
+import { equipmentApi, Equipment, MaintenanceRequest } from "@/lib/api"
 
 export default function EquipmentDetailPage() {
     const params = useParams()
@@ -37,9 +37,9 @@ export default function EquipmentDetailPage() {
         const fetchData = async () => {
             try {
                 const [equipmentData, requestsData, countData] = await Promise.all([
-                    getEquipment(equipmentId),
-                    getEquipmentRequests(equipmentId),
-                    getEquipmentRequestCount(equipmentId),
+                    equipmentApi.get(equipmentId),
+                    equipmentApi.getRequests(equipmentId),
+                    equipmentApi.getRequestCount(equipmentId),
                 ])
                 setEquipment(equipmentData)
                 setRequests(requestsData)

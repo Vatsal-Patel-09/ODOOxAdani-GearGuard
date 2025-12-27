@@ -31,7 +31,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getEquipments, createEquipment, deleteEquipment, getTeams, getUsers, Equipment, MaintenanceTeam, User } from "@/lib/api"
+import { equipmentApi, teamsApi, usersApi, Equipment, MaintenanceTeam, User } from "@/lib/api"
 
 const CATEGORIES = ["Machine", "Vehicle", "Computer", "Tool", "Other"]
 
@@ -57,9 +57,9 @@ export default function EquipmentPage() {
     const fetchData = async () => {
         try {
             const [equipmentData, teamsData, usersData] = await Promise.all([
-                getEquipments(),
-                getTeams(),
-                getUsers(),
+                equipmentApi.list(),
+                teamsApi.list(),
+                usersApi.list(),
             ])
             setEquipment(equipmentData)
             setTeams(teamsData)
@@ -78,7 +78,7 @@ export default function EquipmentPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         try {
-            await createEquipment({
+            await equipmentApi.create({
                 name: formData.name,
                 serial_number: formData.serial_number,
                 category: formData.category,
@@ -88,7 +88,7 @@ export default function EquipmentPage() {
                 assigned_employee_id: formData.assigned_employee_id || null,
                 purchase_date: null,
                 warranty_expiry: null,
-            })
+            } as any)
             setIsDialogOpen(false)
             setFormData({ name: "", serial_number: "", category: "", department: "", location: "", maintenance_team_id: "", assigned_employee_id: "" })
             fetchData()
@@ -100,7 +100,7 @@ export default function EquipmentPage() {
     const handleDelete = async (id: string) => {
         if (confirm("Are you sure you want to delete this equipment?")) {
             try {
-                await deleteEquipment(id)
+                await equipmentApi.delete(id)
                 fetchData()
             } catch (error) {
                 console.error("Failed to delete equipment:", error)
