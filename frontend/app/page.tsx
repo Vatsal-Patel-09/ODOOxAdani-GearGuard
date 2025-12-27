@@ -1,13 +1,5 @@
-import Navbar from '@/components/Navbar'
-import React from 'react'
+import { redirect } from "next/navigation"
 
-const Page = () => {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background text-primary">
-      <Navbar />
-      ODOO X Adani
-    </main>
-  )
+export default function Home() {
+  redirect("/dashboard")
 }
-
-export default Page
