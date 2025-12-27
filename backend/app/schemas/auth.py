@@ -15,8 +15,11 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
+    """Response for login/register with JWT token."""
     id: str
     name: str
     email: str
     role: str
+    access_token: str
+    token_type: str = "bearer"
     message: str

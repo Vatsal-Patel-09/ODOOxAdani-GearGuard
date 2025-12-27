@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user, require_role
 from app.schemas.team import (
     MaintenanceTeamCreate,
     MaintenanceTeamUpdate,
@@ -13,6 +13,7 @@ from app.schemas.team import (
     TeamMemberOut,
 )
 from app.services import team as team_service
+from app.db.models.user import User
 
 router = APIRouter(prefix="/teams", tags=["Maintenance Teams"])
 
@@ -22,6 +23,7 @@ def list_teams(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """List all maintenance teams."""
     return team_service.get_teams(db, skip=skip, limit=limit)
@@ -31,8 +33,9 @@ def list_teams(
 def create_team(
     team_in: MaintenanceTeamCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only
 ):
-    """Create a new maintenance team."""
+    """Create a new maintenance team. Requires admin role."""
     # Check if name already exists
     existing = team_service.get_team_by_name(db, team_in.name)
     if existing:
@@ -47,6 +50,7 @@ def create_team(
 def get_team(
     team_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """Get a team with its members."""
     team = team_service.get_team(db, team_id)
@@ -71,8 +75,9 @@ def update_team(
     team_id: UUID,
     team_in: MaintenanceTeamUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only
 ):
-    """Update a team."""
+    """Update a team. Requires admin role."""
     team = team_service.update_team(db, team_id, team_in)
     if not team:
         raise HTTPException(
@@ -86,8 +91,9 @@ def update_team(
 def delete_team(
     team_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only
 ):
-    """Delete a team."""
+    """Delete a team. Requires admin role."""
     deleted = team_service.delete_team(db, team_id)
     if not deleted:
         raise HTTPException(
@@ -103,8 +109,9 @@ def add_team_member(
     team_id: UUID,
     member_in: TeamMemberCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only
 ):
-    """Add a user to the team."""
+    """Add a user to the team. Requires admin role."""
     team = team_service.get_team(db, team_id)
     if not team:
         raise HTTPException(
@@ -121,8 +128,9 @@ def remove_team_member(
     team_id: UUID,
     user_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),  # Admin only
 ):
-    """Remove a user from the team."""
+    """Remove a user from the team. Requires admin role."""
     removed = team_service.remove_team_member(db, team_id, user_id)
     if not removed:
         raise HTTPException(
@@ -136,6 +144,7 @@ def remove_team_member(
 def list_team_members(
     team_id: UUID,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),  # Any authenticated user
 ):
     """List all members of a team."""
     team = team_service.get_team(db, team_id)
